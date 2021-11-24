@@ -1,0 +1,16 @@
+---
+# tasks file for linux-os-upgrade
+
+- name: Include Prerequisites Tasks to check before upgrade
+  include_tasks: prerequisites.yml
+  args:
+    apply:
+      tags: prerequisites
+  tags: prerequisites
+
+- name: "Update OS | Include tasks for the corresponding release major version"
+  include_tasks: "os-update-and-upgrade-rhel{{ ansible_distribution_major_version }}.yml"
+  args:
+    apply:
+      tags: os-update-and-upgrade-rhel
+  tags: os-update-and-upgrade-rhel

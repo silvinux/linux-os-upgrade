@@ -1,0 +1,20 @@
+#- debug:
+#    msg: 
+#      - "{{ item.size_total }}"
+#      - "{{ item.size_available }}"
+#      - "{{ item.size_total|float }}"
+#      - "{{ item.size_total|float *  filesystem_threshold / 100 }}"
+#  loop: '{{ansible_mounts}}'
+#  when: "{{ item.mount == '/boot' or item.mount == '/' }}"
+
+- block:
+  - name: "Check available space for filesystem: /boot and /. It must have at least {{ filesystem_threshold }} % available in the filesystem"
+    ansible.builtin.assert:
+      that:
+        - "{{ item.size_available  > (item.size_total|float *  filesystem_threshold / 100) }}"
+      fail_msg: "Please verify file system {{ item.mount }} because has {{ (((item.size_total - item.size_available) / item.size_total ) * 100) | round | int }}% usage"
+      success_msg: "You're good to go"
+    loop: '{{ansible_mounts}}'
+    when: item.mount == '/boot' or item.mount == '/' or item.mount == '/u01/app/oracle/diag/rdbms/instance_1'
+    tags:
+      - fs_space

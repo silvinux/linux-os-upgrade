@@ -1,0 +1,20 @@
+[local]
+localhost
+
+[nodes]
+node3.bcnconsulting.com
+node4.bcnconsulting.com
+rhel77.bcnconsulting.com ansible_host=10.0.0.170
+
+[site1]
+node3.bcnconsulting.com 
+
+[site2]
+node4.bcnconsulting.com 
+
+[nodes-prv:children]
+site1
+site2
+
+[quorum]
+quorum.bcnconsulting.com

@@ -1,0 +1,5 @@
+---
+# defaults file for linux-os-upgrade
+# filesystem_threshold is the free space percentage needed to be able to upgrade
+filesystem_threshold: 30
+satellite_version: 6.9

@@ -1,0 +1,12 @@
+---
+- name: Deploying a Red Hat High Availability cluster
+  hosts: nodes:quorum
+  become: yes
+  become_method: sudo
+  become_user: root
+  remote_user: ansible
+  gather_facts: yes
+  roles:
+    - role: roles/linux-os-upgrade
+        
+...

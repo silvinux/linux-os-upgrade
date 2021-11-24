@@ -1,0 +1,48 @@
+---
+- name: Update OS | Host Reboot | Set Defaults
+  ansible.builtin.set_fact:
+    reboot_only_if_needed: True
+  when: reboot_only_if_needed is undefined
+
+- name: Update OS | Host Reboot | Install yum-utils
+  ansible.builtin.yum:
+    name:
+      - katello-host-tools
+      - yum-utils
+      - dnf-plugin-subscription-manager
+    enablerepo:
+      - "satellite-tools-{{ satellite_version }}-for-rhel-8-x86_64-rpms"
+    state: present
+  when: ansible_distribution_major_version is version('8', '==')
+
+- block:
+  - name: Update OS | Host Reboot | Detect if reboot is required (rhel8)
+    ansible.builtin.command: 
+      cmd: needs-restarting --reboothint
+    register: needs_restart_result_rh8
+    failed_when: needs_restart_result_rh8.rc > 1
+    changed_when: needs_restart_result_rh8.rc == 1
+    when: ansible_distribution_major_version is version('8', '==')
+  when: reboot_only_if_needed
+
+- name: Update OS | Host Reboot | Schedule Reboot (rhel8)
+  ansible.builtin.reboot:
+    pre_reboot_delay: 10
+    post_reboot_delay: 65
+    reboot_timeout: 1800
+    test_command: uptime
+  when:
+    - needs_restart_result_rh8 is changed or not reboot_only_if_needed
+    - ansible_distribution_major_version is version('8', '==')
+
+- name: "Update Satellite facts"
+  ansible.builtin.shell: "{{ item }}"
+  args:
+    warn: no
+  environment:
+    PATH: "{{ ansible_env.PATH }}:/usr/bin:/usr/sbin"
+  loop:
+    - "subscription-manager facts --update"
+    - "dnf uploadprofile --force-upload" # in rhel8 there's no katello-package-upload , dnf subscription-manager plugin used instead
+  when: ansible_distribution_major_version is version('8', '==')
+...

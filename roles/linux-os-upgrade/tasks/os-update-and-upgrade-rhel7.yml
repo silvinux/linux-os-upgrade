@@ -1,0 +1,93 @@
+---
+- name: "Update OS | Set if yum_update_security or yum_update"
+  ansible.builtin.set_fact:
+    yum_update: false
+    yum_update_security: true
+  when: yum_update is undefined or yum_update_security is undefined
+
+- name: "Update OS | Any package updates required?"
+  ansible.builtin.command:
+    cmd: 'yum check-update'
+  args:
+    warn: no
+  register: packages_need_update_result_rhel7
+  changed_when: packages_need_update_result_rhel7.rc == 100
+  failed_when: packages_need_update_result_rhel7.rc != 0 and packages_need_update_result_rhel7.rc != 100
+
+- name: "Update OS | Stop Services"
+  ansible.builtin.service:
+    name: "{{ item }}"
+    state: stopped
+  with_items: "{{ services_to_stop }}"
+  when:
+    - services_to_stop is defined
+    - services_to_stop | length > 0
+
+- name: "Update OS | Set Defaults"
+  ansible.builtin.set_fact:
+    yum_update: false
+    yum_update_security: true
+  when: yum_update is undefined or yum_update_security is undefined
+
+- name: "Update OS | Update All Packages"
+  ansible.builtin.yum:
+    name: '*'
+    state: latest
+  #  disablerepo: '*'
+  #  enablerepo: 'rhel-*-server-rpms'
+  async: 1000
+  poll: 0
+  register: yum_sleeper_rhel7
+  when: 
+    - yum_update
+    - packages_need_update_result_rhel7 is changed
+
+- name: "YUM - check on async task yum_sleeper_rhel"
+  ansible.builtin.async_status:
+    jid: "{{ yum_sleeper_rhel7.ansible_job_id }}"
+  register: job_result
+  until: job_result.finished
+  retries: 180
+  delay: 30
+  when: 
+    - yum_update
+    - packages_need_update_result_rhel7 is changed
+
+- name: "Update OS | Update Security and Bugfix Packages"
+  ansible.builtin.yum:
+    name: '*'
+    security: yes
+    bugfix: yes
+    state: latest
+  #  disablerepo: '*'
+  #  enablerepo: 'rhel-*-server-rpms'
+  async: 1000
+  poll: 0
+  register: rhel7_yum_update_out
+  when: 
+    - yum_update_security
+    - packages_need_update_result_rhel7 is changed
+
+- name: "YUM - check on async task rhel7_yum_update_out"
+  ansible.builtin.async_status:
+    jid: "{{ rhel7_yum_update_out.ansible_job_id }}"
+  register: job_result
+  until: job_result.finished
+  retries: 180
+  delay: 30
+  when: 
+    - yum_update_security
+    - packages_need_update_result_rhel7 is changed
+
+- name: "Update OS | Include Tasks for Host Reboot"
+  include_tasks: reboot-rhel7.yml
+
+- name: "Update OS | Start Services"
+  ansible.builtin.service:
+    name: "{{ item }}"
+    state: started
+  with_items: "{{ services_to_stop }}"
+  when:
+    - services_to_stop is defined
+    - services_to_stop|length > 0
+...

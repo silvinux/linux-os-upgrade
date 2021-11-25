@@ -14,6 +14,18 @@
   changed_when: packages_need_update_result_rhel7.rc == 100
   failed_when: packages_need_update_result_rhel7.rc != 0 and packages_need_update_result_rhel7.rc != 100
 
+- name: Detect if pacemaker cluster is installed
+  detect_pacemaker_cluster:  
+
+- name: Include tasks to stop cluster resources
+  #include_tasks: reboot-rhel7.yml
+  debug:
+    msg:
+     - "Include tasks to stop cluster resources when pacemaker_cluster_present = {{ pacemaker_cluster_present }}"
+     - "{{ pacemaker_cluster_present }}"
+     - "{{ pacemaker_detected_cluster_nodes }}"
+  when: pacemaker_cluster_present is defined and pacemaker_cluster_present  
+
 - name: "Update OS | Stop Services"
   ansible.builtin.service:
     name: "{{ item }}"
@@ -22,6 +34,7 @@
   when:
     - services_to_stop is defined
     - services_to_stop | length > 0
+      
 
 - name: "Update OS | Set Defaults"
   ansible.builtin.set_fact:

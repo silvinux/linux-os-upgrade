@@ -1,5 +1,5 @@
 ---
-- name: Deploying a Red Hat High Availability cluster
+- name: Linux upgrade OS rhel{7,8}
   hosts: nodes:quorum
   become: yes
   become_method: sudo

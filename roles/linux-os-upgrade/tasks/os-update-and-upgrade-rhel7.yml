@@ -14,17 +14,14 @@
   changed_when: packages_need_update_result_rhel7.rc == 100
   failed_when: packages_need_update_result_rhel7.rc != 0 and packages_need_update_result_rhel7.rc != 100
 
-- name: Detect if pacemaker cluster is installed
-  detect_pacemaker_cluster:  
+- name: Checking the cluster configuration
+  ansible.builtin.stat:
+    path: /etc/corosync/corosync.conf
+  register: cluster_config_exists
 
-- name: Include tasks to stop cluster resources
-  #include_tasks: reboot-rhel7.yml
-  debug:
-    msg:
-     - "Include tasks to stop cluster resources when pacemaker_cluster_present = {{ pacemaker_cluster_present }}"
-     - "{{ pacemaker_cluster_present }}"
-     - "{{ pacemaker_detected_cluster_nodes }}"
-  when: pacemaker_cluster_present is defined and pacemaker_cluster_present  
+- name: Include tasks to standby cluster node
+  include_tasks: pcs_node_standby.yml
+  when: cluster_config_exists['stat']['exists']  
 
 - name: "Update OS | Stop Services"
   ansible.builtin.service:
@@ -94,6 +91,10 @@
 
 - name: "Update OS | Include Tasks for Host Reboot"
   include_tasks: reboot-rhel7.yml
+
+- name: Include tasks to unstandby cluster node
+  include_tasks: pcs_node_unstandby.yml
+  when: cluster_config_exists['stat']['exists']  
 
 - name: "Update OS | Start Services"
   ansible.builtin.service:

@@ -1,0 +1,58 @@
+---
+- name: Get nodes attributes from cib.xml
+  community.general.xml:
+    path: /var/lib/pacemaker/cib/cib.xml
+    xpath: '/cib/configuration/nodes/node/instance_attributes/nvpair'
+    content: attribute
+  register: get_node_attributes
+  failed_when: "( 'The target XML source \\'/var/lib/pacemaker/cib/cib.xml\\' does not exist' in get_node_attributes.msg | string )"
+  changed_when: get_node_attributes.matches is defined
+
+- name: Show an attribute value
+  ansible.builtin.debug:
+    var: get_node_attributes
+
+- name: "Check only"
+  ansible.builtin.assert:
+    that:
+      - "'{{ item.nvpair.name }}' != 'standby'"
+      - "'{{ item.nvpair.name }}' != 'maintenance'"
+    fail_msg: "This cluster has already nodes in standby or maintenance mode, Please Check it before proceed"
+    success_msg: "The cluster will be updated due to checks has been passed"
+  loop: '{{ get_node_attributes.matches }}'
+  when: get_node_attributes.matches is defined
+
+  #- debug:
+  #    msg: "Paso el bloque, esta OK"  
+
+- name: Get cluster status
+  ansible.builtin.command:
+    cmd: "pcs cluster status"
+  register: cluster_status
+  failed_when: false
+
+- block:  
+  - name: Mark the node in standby mode
+    ansible.builtin.command:
+      cmd: "pcs node standby {{ inventory_hostname }}"
+    register: node_standby
+    
+    #- debug:
+    #    msg: "{{ node_standby }}"
+  
+  - name: Stop the node
+    community.general.pacemaker_cluster:
+      state: offline
+      node: "{{ inventory_hostname }}"
+    register:  cluster_state
+  
+    #- debug:
+    #    msg: "{{ cluster_state  }}"
+    
+  - name: Disable the node
+    ansible.builtin.command:
+      cmd: "/usr/sbin/pcs cluster disable {{ inventory_hostname }}"
+    register: node_disable
+    changed_when: "'{{ inventory_hostname }}: Cluster Disabled' in node_disable['stdout']"      
+  when: cluster_status.rc == 0    
+...

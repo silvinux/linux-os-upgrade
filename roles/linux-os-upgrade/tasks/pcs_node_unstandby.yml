@@ -1,0 +1,59 @@
+---
+- name: Get nodes attributes from cib.xml
+  community.general.xml:
+    path: /var/lib/pacemaker/cib/cib.xml
+    xpath: '/cib/configuration/nodes/node/instance_attributes/nvpair'
+    content: attribute
+  register: get_node_attributes
+  failed_when: "( 'The target XML source \\'/var/lib/pacemaker/cib/cib.xml\\' does not exist' in get_node_attributes.msg | string )"
+  changed_when: get_node_attributes.matches is defined 
+
+- name: Show an attribute value
+  ansible.builtin.debug:
+    var: get_node_attributes
+
+- name: Get node ID and uname
+  community.general.xml:
+    path: /var/lib/pacemaker/cib/cib.xml
+    xpath: '/cib/configuration/nodes/node'
+    content: attribute
+  register: get_node_id_uname
+  failed_when: "('The target XML source \\'/var/lib/pacemaker/cib/cib.xml\\' does not exist' in get_node_id_uname.msg|string)"
+  changed_when: get_node_id_uname.matches is defined
+
+- name: Show an attribute value
+  ansible.builtin.debug:
+    var: get_node_id_uname
+  when: get_node_id_uname.matches is defined
+    
+  #- debug:
+  #    msg:
+  #     - "'{{ item.1.nvpair.name }}' == 'standby'"
+  #     - "'{{ item.1.nvpair.value }}' == 'on'"
+  #     - "{{ item.0.node.id }} - {{ item.1.nvpair.id }}"
+  #     - "nodes-{{ item.0.node.id }}-standby - {{ item.1.nvpair.id }}"
+  #     - "{{ item.0.node.uname }}  - {{ inventory_hostname }}'"
+  #  loop: "{{ get_node_id_uname.matches | product(get_node_attributes.matches)| list }}"
+  #  when: get_node_id_uname.matches is defined and get_node_attributes.matches is defined
+
+- debug:
+    msg: "Loop OK"
+  loop: "{{ get_node_id_uname.matches | product(get_node_attributes.matches)| list }}"
+  when: 
+    - get_node_id_uname.matches is defined and get_node_attributes.matches is defined
+    - "'{{ item.1.nvpair.name }}' == 'standby'"
+    - "'{{ item.1.nvpair.value }}' == 'on'"
+    - "'nodes-{{ item.0.node.id }}-standby' == '{{ item.1.nvpair.id }}'"
+    - "'{{ item.0.node.uname }}' == '{{ inventory_hostname }}'"
+
+  
+- name: Include tasks to unstandby cluster node
+  include_tasks: pcs_node_unstandby_actions.yml
+  loop: "{{ get_node_id_uname.matches | product(get_node_attributes.matches)| list }}"
+  when: 
+    - get_node_id_uname.matches is defined and get_node_attributes.matches is defined
+    - "'{{ item.1.nvpair.name }}' == 'standby'"
+    - "'{{ item.1.nvpair.value }}' == 'on'"
+    - "'nodes-{{ item.0.node.id }}-standby' == '{{ item.1.nvpair.id }}'"
+    - "'{{ item.0.node.uname }}' == '{{ inventory_hostname }}'"
+...

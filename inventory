@@ -5,6 +5,8 @@ localhost
 node3.bcnconsulting.com
 node4.bcnconsulting.com
 rhel77.bcnconsulting.com ansible_host=10.0.0.170
+node1
+node2
 
 [site1]
 node3.bcnconsulting.com 

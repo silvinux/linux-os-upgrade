@@ -1,0 +1,39 @@
+---
+- name: Get cluster status
+  ansible.builtin.command:
+    cmd: "pcs cluster status"
+  register: cluster_status
+  failed_when: false
+
+- name: Restart the node
+  community.general.pacemaker_cluster:
+    state: restart
+    node: "{{ inventory_hostname }}"
+  register:  cluster_state
+  when: cluster_status.rc == 1
+
+- name: Get cluster status
+  ansible.builtin.command:
+    cmd: "pcs cluster status"
+  register: cluster_status
+  failed_when: false
+
+- block:
+
+  - name: Enable the node
+    ansible.builtin.command:
+      cmd: "/usr/sbin/pcs cluster enable {{ inventory_hostname }}"
+    register: node_enable
+    changed_when: "'{{ inventory_hostname }}: Cluster Enabled' in node_enable['stdout']"
+
+  - name: Mark the node in unstandby mode
+    ansible.builtin.command:
+      cmd: "pcs node unstandby {{ inventory_hostname }}"
+    register: node_unstandby
+
+  - debug:
+      msg: "{{ node_unstandby }}"
+  - debug:
+      msg: "{{ cluster_state  }}"
+
+  when: cluster_status.rc == 0

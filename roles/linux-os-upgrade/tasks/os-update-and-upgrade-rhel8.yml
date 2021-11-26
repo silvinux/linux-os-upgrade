@@ -14,6 +14,15 @@
   changed_when: packages_need_update_result_rhel8.rc == 100
   failed_when: packages_need_update_result_rhel8.rc != 0 and packages_need_update_result_rhel8.rc != 100
 
+- name: Checking the cluster configuration
+  ansible.builtin.stat:
+    path: /etc/corosync/corosync.conf
+  register: cluster_config_exists
+
+- name: Include tasks to standby cluster node
+  include_tasks: pcs_node_standby.yml
+  when: cluster_config_exists['stat']['exists']
+
 - name: "Update OS | Stop Services"
   ansible.builtin.service:
     name: "{{ item }}"
@@ -85,6 +94,10 @@
 
 - name: "Update OS | Include Tasks for Host Reboot"
   include_tasks: reboot-rhel8.yml
+
+- name: Include tasks to unstandby cluster node
+  include_tasks: pcs_node_unstandby.yml
+  when: cluster_config_exists['stat']['exists']
 
 - name: "Update OS | Start Services"
   ansible.builtin.service:

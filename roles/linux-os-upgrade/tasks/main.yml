@@ -14,3 +14,17 @@
     apply:
       tags: os-update-and-upgrade-rhel
   tags: os-update-and-upgrade-rhel
+
+- name: Include Prerequisites Tasks to check before upgrade
+  include_tasks: pcs_node_standby.yml
+  args:
+    apply:
+      tags: pcs_node_standby
+  tags: pcs_node_standby  
+
+- name: Include Prerequisites Tasks to check before upgrade
+  include_tasks: pcs_node_unstandby.yml
+  args:
+    apply:
+      tags: pcs_node_unstandby
+  tags: pcs_node_unstandby
